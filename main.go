@@ -54,35 +54,34 @@ func main() {
 		_ = ctx.PrintUsage(false)
 	default:
 		for _, f := range opt.Files {
-			err := split(f)
-			if err != nil {
-				log.Fatalf("split %s failed: %s", f, err)
+			if e := split(f); e != nil {
+				log.Fatalf("split %s failed: %s", f, e)
 			}
 		}
 	}
 }
 
-func split(f string) (err error) {
-	fd, err := os.Open(f)
+func split(name string) (err error) {
+	f, err := os.Open(name)
 	if err != nil {
 		return
 	}
-	defer fd.Close()
+	defer f.Close()
 
-	stat, err := fd.Stat()
+	stat, err := f.Stat()
 	if err != nil {
 		return
 	}
 
 	if opt.Verbose {
-		log.Printf("split %s(%s)", f, humanize.Bytes(uint64(stat.Size())))
+		log.Printf("split %s(%s)", name, humanize.Bytes(uint64(stat.Size())))
 	}
 
 	wrt, idx := int64(0), 0
 	for wrt < stat.Size() {
-		p := fmt.Sprintf("%s.%d", filepath.Base(f), idx)
+		p := fmt.Sprintf("%s.%d", filepath.Base(name), idx)
 
-		n, e := part(fd, p, stat.Mode(), stat.Size())
+		n, e := part(f, p, stat.Mode(), stat.Size())
 		if opt.Verbose {
 			log.Printf("part#%d => %s(%s)", idx, p, humanize.Bytes(uint64(n)))
 		}
@@ -100,10 +99,10 @@ func split(f string) (err error) {
 }
 
 func part(r io.Reader, name string, mod os.FileMode, total int64) (n int64, err error) {
-	w, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mod)
+	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mod)
 	if err != nil {
 		return
 	}
-	defer w.Close()
-	return io.CopyN(w, r, opt.splitSize(total))
+	defer f.Close()
+	return io.CopyN(f, r, opt.splitSize(total))
 }
